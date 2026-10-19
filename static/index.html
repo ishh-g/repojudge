@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Judge any public GitHub repository fairly, with proof." />
+  <title>RepoJudge</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <h1 class="brand">RepoJudge</h1>
+      <p class="tagline">
+        Paste a public GitHub repository. RepoJudge finds what the project claims,
+        looks for proof of each claim in the code, and reports anything it cannot
+        prove as <strong>Unverified</strong>. It never guesses.
+      </p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <form id="analyze-form" class="card" autocomplete="off">
+      <div class="field">
+        <label for="repo-url">Public GitHub repository URL</label>
+        <input
+          id="repo-url"
+          name="repo_url"
+          type="url"
+          inputmode="url"
+          placeholder="https://github.com/owner/repo"
+          required
+        />
+      </div>
+
+      <div class="field">
+        <label for="requirements">
+          Extra things to check <span class="muted">(optional, one per line)</span>
+        </label>
+        <textarea
+          id="requirements"
+          name="requirements"
+          rows="3"
+          placeholder="e.g. Supports Docker deployment&#10;Has a command line interface"
+        ></textarea>
+      </div>
+
+      <label class="checkbox">
+        <input id="nocache" name="nocache" type="checkbox" />
+        Re-run without cache
+      </label>
+
+      <button id="analyze-button" type="submit">Analyze</button>
+    </form>
+
+    <section id="loading" class="card" hidden aria-live="polite">
+      <h2>Analyzing…</h2>
+      <ol id="steps" class="steps">
+        <li data-step="fetch">Fetching repository</li>
+        <li data-step="claims">Extracting claims</li>
+        <li data-step="proof">Checking proof</li>
+        <li data-step="score">Scoring</li>
+      </ol>
+      <p class="muted">Repositories can take a few seconds. Please keep this tab open.</p>
+    </section>
+
+    <section id="error" class="card error-card" hidden role="alert">
+      <h2 id="error-title">Something went wrong</h2>
+      <p id="error-message"></p>
+    </section>
+
+    <section id="result" hidden>
+      <div class="card score-card">
+        <div class="score-hero">
+          <div class="score-number">
+            <span id="total-score">0</span><span class="score-max">/100</span>
+          </div>
+          <div class="score-meta">
+            <div id="repo-name" class="repo-name"></div>
+            <a id="repo-link" class="repo-link" target="_blank" rel="noopener"></a>
+            <div id="score-grade" class="grade"></div>
+          </div>
+        </div>
+        <div id="banners" class="banners"></div>
+        <div id="breakdown" class="breakdown"></div>
+        <div class="actions">
+          <button id="download-json" type="button" class="ghost">Download JSON</button>
+          <button id="download-md" type="button" class="ghost">Download Markdown</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Claims</h2>
+        <p id="claims-summary" class="muted"></p>
+        <div class="table-scroll">
+          <table class="claims-table">
+            <thead>
+              <tr>
+                <th>Claim</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody id="claims-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Engineering checks</h2>
+        <ul id="checks-list" class="checks-list"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Repository health</h2>
+        <ul id="health-list" class="checks-list"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Files read and skipped</h2>
+        <p id="files-summary" class="muted"></p>
+        <h3 class="subhead">Read</h3>
+        <ul id="files-read" class="files-list"></ul>
+        <h3 class="subhead">Skipped</h3>
+        <ul id="files-skipped" class="files-list"></ul>
+      </div>
+
+      <div class="card" id="warnings-card" hidden>
+        <h2>Warnings</h2>
+        <ul id="warnings-list" class="warnings-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>
+        RepoJudge reads repositories as text only. It never runs or executes code
+        from the repositories it judges. Every score is backed by evidence.
+      </p>
+    </div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

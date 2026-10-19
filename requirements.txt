@@ -1,0 +1,8 @@
+# RepoJudge runtime + test dependencies.
+fastapi==0.146.0
+uvicorn[standard]==0.54.0
+requests==2.34.2
+
+# Tests
+pytest==9.1.1
+httpx==0.28.1

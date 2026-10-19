@@ -1,0 +1,146 @@
+{
+  "name": "RepoJudge",
+  "meta": {
+    "instanceId": "repojudge-template",
+    "templateCredsSetupCompleted": false
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "repojudge",
+        "responseMode": "lastNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "1a1a1a1a-1111-4a1a-8a1a-aaaaaaaaaaaa",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-220, 0],
+      "webhookId": "repojudge-webhook",
+      "notesInFlow": true,
+      "notes": "POST { \"repo_url\": \"https://github.com/owner/repo\", \"requirements\": [\"optional\", \"checks\"] }"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/analyze",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ repo_url: $json.body.repo_url, requirements: ($json.body.requirements || []) }) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "2b2b2b2b-2222-4b2b-8b2b-bbbbbbbbbbbb",
+      "name": "Analyze repo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 0],
+      "notesInFlow": true,
+      "notes": "Calls the RepoJudge API. Change the URL if your RepoJudge runs elsewhere."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Format a short summary: score, top 3 Verified, top 3 Unverified.\nconst report = $input.first().json;\n\nif (report.error) {\n  return [{ json: { message: 'RepoJudge error: ' + report.error.message, report } }];\n}\n\nconst claims = report.claims || [];\nconst pick = (status) => claims\n  .filter((c) => c.status === status)\n  .slice(0, 3)\n  .map((c) => '- ' + c.claim)\n  .join('\\n');\n\nconst verified = pick('Verified') || '- (none)';\nconst unverified = pick('Unverified') || '- (none)';\n\nconst lines = [\n  'RepoJudge: ' + report.repo.full_name,\n  'Score: ' + report.score.total + '/100 (grade ' + report.score.grade + ')',\n  'Analysis: ' + report.analysis_type,\n  '',\n  'Top verified claims:',\n  verified,\n  '',\n  'Top unverified claims:',\n  unverified,\n  '',\n  'Report: ' + report.repo.url,\n];\n\nreturn [{ json: { message: lines.join('\\n'), report } }];"
+      },
+      "id": "3c3c3c3c-3333-4c3c-8c3c-cccccccccccc",
+      "name": "Format summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_YOUR_CHAT_ID",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "id": "4d4d4d4d-4444-4d4d-8d4d-dddddddddddd",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [460, -100],
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "fromEmail": "REPLACE_WITH_SENDER@example.com",
+        "toEmail": "REPLACE_WITH_RECIPIENT@example.com",
+        "subject": "=RepoJudge report: {{ $json.report.repo.full_name }}",
+        "emailType": "text",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "5e5e5e5e-5555-4e5e-8e5e-eeeeeeeeeeee",
+      "name": "Send by email (optional)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [460, 120],
+      "disabled": true,
+      "notesInFlow": true,
+      "notes": "Enable this and disable Telegram if you prefer email."
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Analyze repo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze repo": {
+      "main": [
+        [
+          {
+            "node": "Format summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format summary": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send by email (optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "active": false,
+  "versionId": "11111111-1111-4111-8111-111111111111",
+  "tags": []
+}
