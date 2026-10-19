@@ -95,40 +95,8 @@ rule-based and use no LLM at all.
 
 ---
 
-## Architecture
 
-```
-Browser (static/index.html + app.js)
-        |
-        |  POST /analyze  { repo_url, requirements, nocache }
-        v
-FastAPI  (app/main.py)
-        |
-        v
-app/report.py  -- orchestrates the pipeline and caches the result
-        |
-        +--> app/github_client.py   reads the repo (README, tree, languages,
-        |                           license, commits, important file contents)
-        |                           READ ONLY - never executes repo code
-        |
-        +--> app/claims.py          Gemma call 1 -> claims + keywords
-        |                           + strong keywords + evidence kind
-        |
-        +--> app/verifier.py        keyword search for evidence (no LLM)
-        |                           Gemma calls 2+ -> supports/proof/reason,
-        |                           in batches of 8 plus one retry, then a
-        |                           consistency re-check of matching proof lines
-        |                           then enforces: no proof => Unverified,
-        |                           no judgement => Not judged (never guessed)
-        |
-        +--> app/quality_checks.py  rule-based engineering checks (no LLM)
-        |
-        +--> app/scorer.py          claims 50 + quality 30 + health 20 = 100
-        |
-        +--> app/cache.py           file cache keyed by repo + commit + requirements
-```
-
-Mermaid version:
+Mermaid version of Architecture:
 
 ```mermaid
 flowchart TD
@@ -370,62 +338,6 @@ no API keys. It includes:
 
 ---
 
-## Demo script
-
-A short, five-minute demo:
-
-1. Start the app (`uvicorn app.main:app --reload --port 8000`) and open
-   <http://localhost:8000>.
-2. Paste a small public GitHub repository URL and press **Analyze**.
-3. Walk through the score (claims 50 / quality 30 / health 20), the Claims table,
-   and the `file:line` proof shown for every row.
-4. Add an extra requirement the project does not implement (for example
-   `Has a mobile app for Android`), analyze again, and show that it is
-   **Unverified (no proof found in the code read)** while the real claims stay
-   `Verified` or `Partial`.
-5. Tick **Re-run without cache** and analyze once more: the same repository gives
-   the same claims and statuses.
-6. For an offline demo, run `pytest tests/test_demo_pipeline.py`. It uses the
-   local `demo/fake_repo`, whose README makes 3 true claims and 2 false ones.
-
----
-
-## Optional: n8n automation
-
-[`n8n/repojudge.json`](n8n/repojudge.json) is an importable n8n workflow. It is
-entirely optional - the website works without it.
-
-The workflow is:
-
-```
-Webhook -> HTTP Request (POST /analyze) -> Format summary -> Telegram or email
-```
-
-The "Format summary" node builds a short message with the score, the top 3
-`Verified` claims and the top 3 `Unverified` claims.
-
-### Importing it
-
-1. Start RepoJudge first (`uvicorn app.main:app --port 8000`).
-2. In n8n, open **Workflows -> Import from File** and choose
-   `n8n/repojudge.json`.
-3. Open the **Analyze repo** node and change the URL if RepoJudge is not running
-   on `http://localhost:8000`.
-4. **Set your own credentials.** Nothing is shared with this file:
-   - **Telegram**: add a Telegram credential and replace
-     `REPLACE_WITH_YOUR_CHAT_ID`.
-   - **Email** (alternative): the email node is disabled by default. Enable it,
-     disable the Telegram node, add an SMTP credential, and replace the
-     `REPLACE_WITH_...@example.com` addresses.
-5. Activate the workflow, then POST to the webhook:
-
-```bash
-curl -X POST http://localhost:5678/webhook/repojudge \
-  -H "Content-Type: application/json" \
-  -d '{"repo_url": "https://github.com/owner/repo", "requirements": ["Has a CLI"]}'
-```
-
----
 
 ## Project layout
 
